@@ -26,6 +26,7 @@ const canvas = document.getElementById('wheel');
         let currentRotation = 0;
         let lastRotation = 0;
         let lastTickTime = 0;
+        let lastSpinDirection = 1;
         const pointerAngle = -Math.PI / 2;
         const baseRotationOffset = -Math.PI / 2;
         
@@ -495,6 +496,10 @@ const canvas = document.getElementById('wheel');
                         }
                     }
                 }
+                const rotationDelta = currentRotation - lastRotation;
+                if (Math.abs(rotationDelta) > 0.000001) {
+                    lastSpinDirection = rotationDelta > 0 ? 1 : -1;
+                }
                 lastRotation = currentRotation;
                 
                 if (progress < 1) {
@@ -507,11 +512,30 @@ const canvas = document.getElementById('wheel');
                     const rawIndex = adjustedRotation / anglePerSegment;
                     const epsilon = 0.04;
                     const frac = rawIndex - Math.floor(rawIndex);
-                    let winningIndex = Math.floor((rawIndex + 0.5)) % segments.length;
-                    if (frac < epsilon || frac > 1 - epsilon) {
-                        const spinDirection = finalRotation - lastRotation >= 0 ? 1 : -1;
-                        if (pointer) {
-                            pointer.classList.add(spinDirection > 0 ? 'rest-left' : 'rest-right');
+                    const baseIndex = Math.floor(rawIndex) % segments.length;
+                    let winningIndex = baseIndex;
+                    const nearStart = frac < epsilon;
+                    const nearEnd = frac > 1 - epsilon;
+                    if (nearStart || nearEnd) {
+                        let lean = 0;
+                        if (pointer && pointer.classList.contains('rest-left')) {
+                            lean = 1;
+                        } else if (pointer && pointer.classList.contains('rest-right')) {
+                            lean = -1;
+                        } else {
+                            lean = lastSpinDirection;
+                        }
+
+                        if (nearStart) {
+                            // Boundary between previous and current segment.
+                            winningIndex = lean < 0
+                                ? (baseIndex - 1 + segments.length) % segments.length
+                                : baseIndex;
+                        } else if (nearEnd) {
+                            // Boundary between current and next segment.
+                            winningIndex = lean > 0
+                                ? (baseIndex + 1) % segments.length
+                                : baseIndex;
                         }
                     }
                     
